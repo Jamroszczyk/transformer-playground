@@ -267,6 +267,8 @@ export default function App() {
             probs={probs}
             samples={samples}
             prompt={useCase.prompt}
+            note={useCase.note}
+            noteMore={useCase.noteMore}
             sortMode={sortMode}
             onSortModeChange={changeSortMode}
           />

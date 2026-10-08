@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { areaPath } from '../lib/spline'
 import { formatProb } from '../lib/sampling'
-import type { Token } from '../lib/tokens'
+import type { Token, UseCaseNoteMore } from '../lib/tokens'
 
 export type Sample = {
   id: number
@@ -68,6 +68,8 @@ export function DistributionChart({
   probs,
   samples,
   prompt,
+  note,
+  noteMore,
   sortMode,
   onSortModeChange,
 }: {
@@ -75,6 +77,8 @@ export function DistributionChart({
   probs: number[]
   samples: Sample[]
   prompt: string
+  note?: string
+  noteMore?: UseCaseNoteMore
   sortMode: SortMode
   onSortModeChange: (mode: SortMode) => void
 }) {
@@ -359,6 +363,27 @@ export function DistributionChart({
         </div>
         <div className="chart-meta">n = {samples.length}</div>
       </div>
+
+      {(note || noteMore) && (
+        <div className="chart-note">
+          {note && <p>{note}</p>}
+          {noteMore && (
+            <details>
+              <summary>More</summary>
+              <p>{noteMore.lead}</p>
+              <p className="chart-note-heading">{noteMore.heading}</p>
+              <ul className="chart-note-timeline">
+                {noteMore.timeline.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              {noteMore.after.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </details>
+          )}
+        </div>
+      )}
     </div>
   )
 }

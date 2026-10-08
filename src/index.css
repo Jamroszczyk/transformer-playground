@@ -465,6 +465,90 @@ input[type='range']::-moz-range-thumb {
   pointer-events: none;
 }
 
+.chart-note {
+  padding: 10px 24px 14px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.chart-note p {
+  margin: 0;
+}
+
+.chart-note details {
+  margin-top: 6px;
+}
+
+.chart-note summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  user-select: none;
+}
+
+.chart-note summary::-webkit-details-marker {
+  display: none;
+}
+
+.chart-note summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.chart-note details[open] summary {
+  color: var(--text);
+}
+
+.chart-note details[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.chart-note details p {
+  margin-top: 10px;
+  max-width: 72ch;
+}
+
+.chart-note-heading {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.chart-note-timeline {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text);
+}
+
+.chart-note-timeline li {
+  position: relative;
+  padding-left: 14px;
+}
+
+.chart-note-timeline li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
 .actions {
   display: flex;
   flex-direction: column;
