@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DistributionChart, type Sample } from './components/DistributionChart'
 import { ParameterSlider } from './components/ParameterSlider'
+import { SiteFooter } from './components/SiteFooter'
 import {
   DEFAULT_PARAMS,
   sampleIndex,
@@ -8,16 +9,24 @@ import {
   type SamplingParams,
 } from './lib/sampling'
 import { TOKENS } from './lib/tokens'
+import { Datenschutz } from './pages/Datenschutz'
+import { Impressum } from './pages/Impressum'
 
 type Theme = 'dark' | 'light'
 
 function readTheme(): Theme {
-  if (typeof window === 'undefined') return 'dark'
-  return window.localStorage.getItem('theme') === 'light' ? 'light' : 'dark'
+  if (typeof window === 'undefined') return 'light'
+  return window.localStorage.getItem('theme') === 'dark' ? 'dark' : 'light'
+}
+
+function currentPath() {
+  const path = window.location.pathname.replace(/\/+$/, '')
+  return path === '' ? '/' : path
 }
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(readTheme)
+  const [path, setPath] = useState(currentPath)
   const [params, setParams] = useState<SamplingParams>(DEFAULT_PARAMS)
   const [samples, setSamples] = useState<Sample[]>([])
   const [history, setHistory] = useState<string[]>([])
@@ -31,8 +40,36 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    window.localStorage.setItem('theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    const onPop = () => setPath(currentPath())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  useEffect(() => {
+    document.title =
+      path === '/impressum'
+        ? 'Impressum'
+        : path === '/datenschutz'
+          ? 'Datenschutz'
+          : 'Sampling Playground'
+  }, [path])
+
+  function go(to: string) {
+    window.history.pushState({}, '', to)
+    setPath(to)
+    window.scrollTo(0, 0)
+  }
+
+  function toggleTheme() {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark'
+      window.localStorage.setItem('theme', next)
+      return next
+    })
+  }
 
   function clearAll() {
     runId.current += 1
@@ -74,103 +111,129 @@ export default function App() {
     }
   }
 
+  const isLegal = path === '/impressum' || path === '/datenschutz'
+
   return (
     <div className="page">
-      <header className="header">
-        <div>
-          <p className="eyebrow">Sampling</p>
-          <h1>Next-token playground</h1>
-          <p className="lede">
-            How temperature, top-k, top-p, and min-p reshape sampling.
-          </p>
-        </div>
-        <div className="header-actions">
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-            aria-label={theme === 'dark' ? 'Switch to bright mode' : 'Switch to dark mode'}
-            title={theme === 'dark' ? 'Bright mode' : 'Dark mode'}
-          >
-            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </button>
-          <button type="button" className="text-btn" onClick={resetDefaults}>
-            Reset defaults
-          </button>
-        </div>
-      </header>
+      {isLegal ? (
+        <>
+          <header className="header legal-header">
+            <button type="button" className="text-btn" onClick={() => go('/')}>
+              ← Playground
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to bright mode' : 'Switch to dark mode'}
+              title={theme === 'dark' ? 'Bright mode' : 'Dark mode'}
+            >
+              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            </button>
+          </header>
+          {path === '/impressum' ? <Impressum /> : <Datenschutz />}
+        </>
+      ) : (
+        <>
+          <header className="header">
+            <div>
+              <p className="eyebrow">Sampling</p>
+              <h1>Next-token playground</h1>
+              <p className="lede">
+                How temperature, top-k, top-p, and min-p reshape sampling.
+              </p>
+            </div>
+            <div className="header-actions">
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={toggleTheme}
+                aria-label={theme === 'dark' ? 'Switch to bright mode' : 'Switch to dark mode'}
+                title={theme === 'dark' ? 'Bright mode' : 'Dark mode'}
+              >
+                {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+              </button>
+              <button type="button" className="text-btn" onClick={resetDefaults}>
+                Reset defaults
+              </button>
+            </div>
+          </header>
 
-      <section className="params">
-        <ParameterSlider
-          label="Temperature"
-          value={params.temperature}
-          min={0}
-          max={10}
-          step={0.01}
-          display={params.temperature.toFixed(2)}
-          help="Raises probabilities to 1/T and renormalizes — low values sharpen the peak, high values flatten the curve."
-          onChange={(v) => update('temperature', v)}
-        />
-        <ParameterSlider
-          label="Top-K"
-          value={params.topK}
-          min={1}
-          max={50}
-          step={1}
-          display={String(params.topK)}
-          help="Keeps only the K most likely tokens and sets every token beyond that cutoff to zero."
-          onChange={(v) => update('topK', v)}
-        />
-        <ParameterSlider
-          label="Top-P"
-          value={params.topP}
-          min={0}
-          max={1}
-          step={0.01}
-          display={params.topP.toFixed(2)}
-          help="Keeps the smallest leading set of tokens whose probabilities sum to P, then zeros the remaining tail."
-          onChange={(v) => update('topP', v)}
-        />
-        <ParameterSlider
-          label="Min-P"
-          value={params.minP}
-          min={0}
-          max={1}
-          step={0.01}
-          display={params.minP.toFixed(2)}
-          help="Zeros any token whose probability falls below P times the most likely token."
-          onChange={(v) => update('minP', v)}
-        />
-      </section>
+          <section className="params">
+            <ParameterSlider
+              label="Temperature"
+              value={params.temperature}
+              min={0}
+              max={10}
+              step={0.01}
+              display={params.temperature.toFixed(2)}
+              help="Raises probabilities to 1/T and renormalizes — low values sharpen the peak, high values flatten the curve."
+              onChange={(v) => update('temperature', v)}
+            />
+            <ParameterSlider
+              label="Top-K"
+              value={params.topK}
+              min={1}
+              max={50}
+              step={1}
+              display={String(params.topK)}
+              help="Keeps only the K most likely tokens and sets every token beyond that cutoff to zero."
+              onChange={(v) => update('topK', v)}
+            />
+            <ParameterSlider
+              label="Top-P"
+              value={params.topP}
+              min={0}
+              max={1}
+              step={0.01}
+              display={params.topP.toFixed(2)}
+              help="Keeps the smallest leading set of tokens whose probabilities sum to P, then zeros the remaining tail."
+              onChange={(v) => update('topP', v)}
+            />
+            <ParameterSlider
+              label="Min-P"
+              value={params.minP}
+              min={0}
+              max={1}
+              step={0.01}
+              display={params.minP.toFixed(2)}
+              help="Zeros any token whose probability falls below P times the most likely token."
+              onChange={(v) => update('minP', v)}
+            />
+          </section>
 
-      <DistributionChart tokens={TOKENS} probs={probs} samples={samples} />
+          <DistributionChart tokens={TOKENS} probs={probs} samples={samples} />
 
-      <section className="actions">
-        <div className="action-row">
-          <button type="button" className="btn primary" onClick={sampleOnce}>
-            Sample next token
-          </button>
-          <button type="button" className="btn" onClick={clearAll}>
-            Clear
-          </button>
-        </div>
+          <section className="actions">
+            <div className="action-row">
+              <button type="button" className="btn primary" onClick={sampleOnce}>
+                Sample next token
+              </button>
+              <button type="button" className="btn" onClick={clearAll}>
+                Clear
+              </button>
+            </div>
 
-        <div className="history" aria-live="polite">
-          {history.length > 0
-            ? history.map((token, i) => (
-                <span key={`${token}-${i}`} className="chip">
-                  {token}
-                </span>
-              ))
-            : samples.length === 0 && (
-                <span className="history-empty">Sampled tokens appear here</span>
-              )}
-        </div>
+            <div className="history" aria-live="polite">
+              {history.length > 0
+                ? history.map((token, i) => (
+                    <span key={`${token}-${i}`} className="chip">
+                      {token}
+                    </span>
+                  ))
+                : samples.length === 0 && (
+                    <span className="history-empty">Sampled tokens appear here</span>
+                  )}
+            </div>
 
-        <button type="button" className="btn mass" onClick={sampleHundred}>
-          Sample 100
-        </button>
-      </section>
+            <button type="button" className="btn mass" onClick={sampleHundred}>
+              Sample 100
+            </button>
+          </section>
+        </>
+      )}
+
+      <SiteFooter onNavigate={go} />
     </div>
   )
 }
