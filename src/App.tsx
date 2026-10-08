@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { DistributionChart, type Sample } from './components/DistributionChart'
 import { ParameterSlider } from './components/ParameterSlider'
 import {
@@ -9,7 +9,15 @@ import {
 } from './lib/sampling'
 import { TOKENS } from './lib/tokens'
 
+type Theme = 'dark' | 'light'
+
+function readTheme(): Theme {
+  if (typeof window === 'undefined') return 'dark'
+  return window.localStorage.getItem('theme') === 'light' ? 'light' : 'dark'
+}
+
 export default function App() {
+  const [theme, setTheme] = useState<Theme>(readTheme)
   const [params, setParams] = useState<SamplingParams>(DEFAULT_PARAMS)
   const [samples, setSamples] = useState<Sample[]>([])
   const [history, setHistory] = useState<string[]>([])
@@ -20,6 +28,11 @@ export default function App() {
     () => visualDistribution(TOKENS.map((t) => t.baseProb), params),
     [params],
   )
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    window.localStorage.setItem('theme', theme)
+  }, [theme])
 
   function clearAll() {
     runId.current += 1
@@ -71,9 +84,20 @@ export default function App() {
             How temperature, top-k, top-p, and min-p reshape sampling.
           </p>
         </div>
-        <button type="button" className="text-btn" onClick={resetDefaults}>
-          Reset defaults
-        </button>
+        <div className="header-actions">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+            aria-label={theme === 'dark' ? 'Switch to bright mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Bright mode' : 'Dark mode'}
+          >
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          </button>
+          <button type="button" className="text-btn" onClick={resetDefaults}>
+            Reset defaults
+          </button>
+        </div>
       </header>
 
       <section className="params">
@@ -155,4 +179,34 @@ function sleep(ms: number) {
   return new Promise<void>((resolve) => {
     window.setTimeout(resolve, ms)
   })
+}
+
+function SunIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.2 6.2l1.5 1.5M16.3 16.3l1.5 1.5M6.2 17.8l1.5-1.5M16.3 7.7l1.5-1.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path
+        d="M16.5 13.5A7 7 0 0 1 10.5 4 7 7 0 1 0 20 13.5a7 7 0 0 1-3.5 0Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
 }

@@ -213,13 +213,13 @@ export function DistributionChart({
       >
         <defs>
           <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#e7d3a8" stopOpacity="0.42" />
-            <stop offset="100%" stopColor="#e7d3a8" stopOpacity="0.04" />
+            <stop className="area-stop-top" offset="0%" />
+            <stop className="area-stop-bottom" offset="100%" />
           </linearGradient>
           <radialGradient id="marbleFill" cx="32%" cy="28%" r="70%">
-            <stop offset="0%" stopColor="#fff8ec" />
-            <stop offset="55%" stopColor="#e8d5b0" />
-            <stop offset="100%" stopColor="#b89a6a" />
+            <stop className="marble-stop-hi" offset="0%" />
+            <stop className="marble-stop-mid" offset="55%" />
+            <stop className="marble-stop-lo" offset="100%" />
           </radialGradient>
           <clipPath id="plotClip">
             <rect
