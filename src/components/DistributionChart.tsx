@@ -35,11 +35,17 @@ type Hover = {
 
 const VIEW_H = 472
 const MIN_R = 1.35
-const MAX_R = 4.6
+const MAX_R = 6.2
 
-function marbleRadius(total: number, binW: number, plotH: number) {
+function maxStackHeight(marbles: { tokenIndex: number }[], tokenCount: number) {
+  const counts = Array.from({ length: tokenCount }, () => 0)
+  for (const marble of marbles) counts[marble.tokenIndex] += 1
+  return Math.max(1, ...counts)
+}
+
+function marbleRadius(maxOccupancy: number, binW: number, plotH: number) {
   const usable = plotH * 0.9
-  const fit = usable / (2 * Math.max(total, 16) + 0.35)
+  const fit = usable / (2 * maxOccupancy + 0.35)
   return Math.max(MIN_R, Math.min(MAX_R, binW * 0.34, fit))
 }
 
@@ -129,7 +135,11 @@ export function DistributionChart({
         return
       }
 
-      const r = marbleRadius(current.length, binW, layout.plotH)
+      const r = marbleRadius(
+        maxStackHeight(current, tokens.length),
+        binW,
+        layout.plotH,
+      )
 
       const counts = Array.from({ length: tokens.length }, () => 0)
       const next: Marble[] = current.map((m) => {
@@ -175,7 +185,11 @@ export function DistributionChart({
     return () => cancelAnimationFrame(rafRef.current)
   }, [binW, layout, tokens.length])
 
-  const r = marbleRadius(marbles.length, binW, layout.plotH)
+  const r = marbleRadius(
+    maxStackHeight(marbles, tokens.length),
+    binW,
+    layout.plotH,
+  )
 
   function onMove(e: MouseEvent<SVGSVGElement>) {
     const svg = e.currentTarget
