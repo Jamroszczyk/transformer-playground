@@ -8,11 +8,14 @@ import {
   visualDistribution,
   type SamplingParams,
 } from './lib/sampling'
-import { TOKENS } from './lib/tokens'
+import { DEFAULT_USE_CASE_ID, USE_CASES, getUseCase } from './lib/tokens'
 import { Datenschutz } from './pages/Datenschutz'
 import { Impressum } from './pages/Impressum'
 
 type Theme = 'dark' | 'light'
+type SortMode = 'sorted' | 'random'
+
+const MARBLE_LIMIT = 150
 
 function readTheme(): Theme {
   if (typeof window === 'undefined') return 'light'
@@ -27,15 +30,26 @@ function currentPath() {
 export default function App() {
   const [theme, setTheme] = useState<Theme>(readTheme)
   const [path, setPath] = useState(currentPath)
+  const [useCaseId, setUseCaseId] = useState(DEFAULT_USE_CASE_ID)
+  const [sortMode, setSortMode] = useState<SortMode>('sorted')
   const [params, setParams] = useState<SamplingParams>(DEFAULT_PARAMS)
   const [samples, setSamples] = useState<Sample[]>([])
   const [history, setHistory] = useState<string[]>([])
   const nextId = useRef(1)
   const runId = useRef(0)
 
+  const useCase = getUseCase(useCaseId)
+  const tokens = useMemo(
+    () =>
+      sortMode === 'sorted'
+        ? useCase.tokens
+        : useCase.randomOrder.map((index) => useCase.tokens[index]),
+    [sortMode, useCase],
+  )
+
   const probs = useMemo(
-    () => visualDistribution(TOKENS.map((t) => t.baseProb), params),
-    [params],
+    () => visualDistribution(tokens.map((t) => t.baseProb), params),
+    [params, tokens],
   )
 
   useEffect(() => {
@@ -83,16 +97,30 @@ export default function App() {
   }
 
   function sampleOnce() {
+    if (samples.length >= MARBLE_LIMIT) return
     runId.current += 1
     const index = sampleIndex(probs)
     const id = nextId.current++
     setSamples((prev) => [...prev, { id, tokenIndex: index }])
-    setHistory((prev) => [...prev, TOKENS[index].text])
+    setHistory((prev) => [...prev, tokens[index].text])
   }
 
   function resetDefaults() {
     clearAll()
     setParams(DEFAULT_PARAMS)
+  }
+
+  function changeUseCase(id: string) {
+    if (id === useCaseId) return
+    clearAll()
+    setParams(DEFAULT_PARAMS)
+    setUseCaseId(id)
+  }
+
+  function changeSortMode(mode: SortMode) {
+    if (mode === sortMode) return
+    clearAll()
+    setSortMode(mode)
   }
 
   async function sampleHundred() {
@@ -159,6 +187,23 @@ export default function App() {
             </div>
           </header>
 
+          <details className="intro">
+            <summary>What is this?</summary>
+            <p>
+              Many people think an LLM is just a next-word predictor. That is
+              somewhat true, but classic transformers do not simply output the
+              next most likely word or token when generating text. They sample
+              from a distribution. That is why you get different answers from
+              the same input. It is like drawing a marble from a bag. How many
+              marbles each token has in the bag — and thus how likely it is to
+              be drawn — depends on the trained weights given the previous
+              token sequence, and can also be adjusted with the transformer’s
+              hyperparameters. Here you can play with those hyperparameters,
+              see the likelihood of drawing each token, and then sample a token
+              from the bag.
+            </p>
+          </details>
+
           <section className="params">
             <ParameterSlider
               label="Temperature"
@@ -202,11 +247,38 @@ export default function App() {
             />
           </section>
 
-          <DistributionChart tokens={TOKENS} probs={probs} samples={samples} />
+          <label className="usecase">
+            <span className="param-label">Use case</span>
+            <select
+              value={useCaseId}
+              onChange={(e) => changeUseCase(e.target.value)}
+            >
+              {USE_CASES.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <DistributionChart
+            key={`${useCaseId}-${sortMode}`}
+            tokens={tokens}
+            probs={probs}
+            samples={samples}
+            prompt={useCase.prompt}
+            sortMode={sortMode}
+            onSortModeChange={changeSortMode}
+          />
 
           <section className="actions">
             <div className="action-row">
-              <button type="button" className="btn primary" onClick={sampleOnce}>
+              <button
+                type="button"
+                className="btn primary"
+                onClick={sampleOnce}
+                disabled={samples.length >= MARBLE_LIMIT}
+              >
                 Sample next token
               </button>
               <button type="button" className="btn" onClick={clearAll}>

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { areaPath } from '../lib/spline'
 import { formatProb } from '../lib/sampling'
-import { PROMPT, type Token } from '../lib/tokens'
+import type { Token } from '../lib/tokens'
 
 export type Sample = {
   id: number
   tokenIndex: number
 }
+
+export type SortMode = 'sorted' | 'random'
 
 type Marble = {
   id: number
@@ -34,13 +36,27 @@ type Hover = {
 } | null
 
 const VIEW_H = 472
-const MIN_R = 1.35
-const MAX_R = 4.6
+const MIN_R = 1.5
+const MAX_R = 5.8
 
-function marbleRadius(total: number, binW: number, plotH: number) {
+function maxStackHeight(marbles: { tokenIndex: number }[], tokenCount: number) {
+  if (marbles.length === 0) return 1
+  const counts = Array.from({ length: tokenCount }, () => 0)
+  for (const marble of marbles) counts[marble.tokenIndex] += 1
+  return Math.max(1, ...counts)
+}
+
+function marbleRadius(
+  maxOccupancy: number,
+  total: number,
+  binW: number,
+  plotH: number,
+) {
   const usable = plotH * 0.9
-  const fit = usable / (2 * Math.max(total, 16) + 0.35)
-  return Math.max(MIN_R, Math.min(MAX_R, binW * 0.34, fit))
+  const spread = Math.sqrt(Math.max(0, total - maxOccupancy))
+  const blend = maxOccupancy + 0.18 * spread
+  const fit = usable / (2 * Math.max(blend, 6) + 0.35)
+  return Math.max(MIN_R, Math.min(MAX_R, binW * 0.4, fit))
 }
 
 function slotY(row: number, r: number, layout: Layout) {
@@ -51,10 +67,16 @@ export function DistributionChart({
   tokens,
   probs,
   samples,
+  prompt,
+  sortMode,
+  onSortModeChange,
 }: {
   tokens: Token[]
   probs: number[]
   samples: Sample[]
+  prompt: string
+  sortMode: SortMode
+  onSortModeChange: (mode: SortMode) => void
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(960)
@@ -129,7 +151,12 @@ export function DistributionChart({
         return
       }
 
-      const r = marbleRadius(current.length, binW, layout.plotH)
+      const r = marbleRadius(
+        maxStackHeight(current, tokens.length),
+        current.length,
+        binW,
+        layout.plotH,
+      )
 
       const counts = Array.from({ length: tokens.length }, () => 0)
       const next: Marble[] = current.map((m) => {
@@ -175,7 +202,12 @@ export function DistributionChart({
     return () => cancelAnimationFrame(rafRef.current)
   }, [binW, layout, tokens.length])
 
-  const r = marbleRadius(marbles.length, binW, layout.plotH)
+  const r = marbleRadius(
+    maxStackHeight(marbles, tokens.length),
+    marbles.length,
+    binW,
+    layout.plotH,
+  )
 
   function onMove(e: MouseEvent<SVGSVGElement>) {
     const svg = e.currentTarget
@@ -304,12 +336,28 @@ export function DistributionChart({
       </svg>
 
       <div className="prompt" aria-hidden="true">
-        <span className="prompt-text">{PROMPT}</span>
+        <span className="prompt-text">{prompt}</span>
         <span className="caret" />
       </div>
 
-      <div className="chart-meta">
-        n = {samples.length}
+      <div className="chart-toolbar">
+        <div className="order-toggle" role="group" aria-label="Token order">
+          <button
+            type="button"
+            className={sortMode === 'sorted' ? 'active' : ''}
+            onClick={() => onSortModeChange('sorted')}
+          >
+            High → low
+          </button>
+          <button
+            type="button"
+            className={sortMode === 'random' ? 'active' : ''}
+            onClick={() => onSortModeChange('random')}
+          >
+            Random
+          </button>
+        </div>
+        <div className="chart-meta">n = {samples.length}</div>
       </div>
     </div>
   )

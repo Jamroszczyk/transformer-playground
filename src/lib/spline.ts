@@ -56,7 +56,10 @@ export function areaPath(
   if (n === 0) return { line: '', area: '' }
 
   const dx = width / n
-  const yAt = (v: number) => y + height - Math.max(0, Math.min(1, v)) * height
+  const peak = Math.max(...values, 1e-9)
+  const yMax = peak * 1.12
+  const yAt = (v: number) =>
+    y + height - Math.max(0, Math.min(1, v / yMax)) * height
   const points: Point[] = [
     { x, y: yAt(values[0]) },
     ...values.map((v, i) => ({

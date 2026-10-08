@@ -3,6 +3,46 @@ export type Token = {
   baseProb: number
 }
 
+export type UseCase = {
+  id: string
+  label: string
+  prompt: string
+  tokens: Token[]
+  randomOrder: number[]
+}
+
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0
+    seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function permutation(length: number, seed: number): number[] {
+  const order = Array.from({ length }, (_, i) => i)
+  const rand = mulberry32(seed)
+  for (let i = length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1))
+    const current = order[i]
+    order[i] = order[j]
+    order[j] = current
+  }
+  return order
+}
+
+function withRandomOrder(
+  useCase: Omit<UseCase, 'randomOrder'>,
+  seed: number,
+): UseCase {
+  return {
+    ...useCase,
+    randomOrder: permutation(useCase.tokens.length, seed),
+  }
+}
+
 const CITIES = [
   'Berlin',
   'Bonn',
@@ -16,7 +56,30 @@ const CITIES = [
   'Dresden',
 ] as const
 
-const FILLER_WORDS = [
+const LANGUAGES = [
+  'Python',
+  'JavaScript',
+  'Java',
+  'TypeScript',
+  'C++',
+  'C',
+  'Go',
+  'Rust',
+  'C#',
+  'PHP',
+  'Swift',
+  'Kotlin',
+  'Ruby',
+  'SQL',
+  'R',
+  'Scala',
+  'Dart',
+  'Lua',
+  'Haskell',
+  'Perl',
+] as const
+
+const CITY_FILLERS = [
   'the',
   'of',
   'a',
@@ -59,37 +122,171 @@ const FILLER_WORDS = [
   'can',
 ] as const
 
-function rawWeights(): number[] {
-  const weights: number[] = []
+const PLACES = [
+  'store',
+  'park',
+  'gym',
+  'office',
+  'beach',
+  'mall',
+  'market',
+  'cafe',
+  'library',
+  'bank',
+  'restaurant',
+  'supermarket',
+  'school',
+  'station',
+  'hospital',
+  'movies',
+  'airport',
+  'university',
+  'museum',
+  'pool',
+  'bakery',
+  'pharmacy',
+  'theater',
+  'stadium',
+  'hotel',
+  'bar',
+  'garden',
+  'kitchen',
+  'downtown',
+  'garage',
+  'zoo',
+  'concert',
+  'dentist',
+  'doctor',
+  'forest',
+  'lake',
+  'mountains',
+  'river',
+  'club',
+  'harbor',
+  'studio',
+  'workshop',
+  'balcony',
+  'basement',
+  'attic',
+  'rooftop',
+  'countryside',
+  'bathroom',
+  'bedroom',
+  'porch',
+] as const
 
-  // Berlin dominates; Bonn is a clear but much smaller second.
+const LANGUAGE_FILLERS = [
+  'the',
+  'of',
+  'a',
+  'in',
+  'to',
+  'and',
+  'is',
+  'for',
+  'that',
+  'on',
+  'with',
+  'as',
+  'by',
+  'from',
+  'at',
+  'this',
+  'or',
+  'an',
+  'be',
+  'not',
+  'but',
+  'maybe',
+  'probably',
+  'clearly',
+  'obviously',
+  'just',
+  'really',
+  'still',
+  'always',
+  'none',
+] as const
+
+function normalize(names: readonly string[], weights: number[]): Token[] {
+  const sum = weights.reduce((a, b) => a + b, 0)
+  return names
+    .map((text, i) => ({
+      text,
+      baseProb: weights[i] / sum,
+    }))
+    .sort((a, b) => b.baseProb - a.baseProb)
+}
+
+function peakedCityWeights(): number[] {
+  const weights: number[] = []
   weights.push(4.6)
   weights.push(1.15)
-
-  // Eight other major German cities, tapering down.
   for (let i = 0; i < 8; i++) {
     weights.push(0.82 * Math.pow(0.78, i))
   }
-
-  // Forty common single-token words, continuing the decay.
   for (let i = 0; i < 40; i++) {
     weights.push(0.11 * Math.pow(0.88, i))
   }
-
   return weights
 }
 
-function buildTokens(): Token[] {
-  const names = [...CITIES, ...FILLER_WORDS]
-  const weights = rawWeights()
-  const sum = weights.reduce((a, b) => a + b, 0)
-
-  return names.map((text, i) => ({
-    text,
-    baseProb: weights[i] / sum,
-  }))
+function nearlyUniformWeights(count: number): number[] {
+  return Array.from({ length: count }, (_, i) => {
+    const t = i / Math.max(count - 1, 1)
+    return 1.12 - 0.24 * t
+  })
 }
 
-export const TOKENS: Token[] = buildTokens()
-export const PROMPT = 'The capital of Germany is'
-export const TOKEN_COUNT = TOKENS.length
+function flatterLanguageProbs(count: number): number[] {
+  const head = [0.1, 0.08, 0.05]
+  const remaining = 1 - head.reduce((a, b) => a + b, 0)
+  const restCount = count - head.length
+  const ratio = 0.955
+  const raw = Array.from({ length: restCount }, (_, i) => Math.pow(ratio, i))
+  const rawSum = raw.reduce((a, b) => a + b, 0)
+  const rest = raw.map((weight) => (weight / rawSum) * remaining)
+  return [...head, ...rest]
+}
+
+const LANGUAGE_NAMES = [...LANGUAGES, ...LANGUAGE_FILLERS]
+const LANGUAGE_PROBS = flatterLanguageProbs(LANGUAGE_NAMES.length)
+
+export const USE_CASES: UseCase[] = [
+  withRandomOrder(
+    {
+      id: 'germany',
+      label: 'Capital of Germany',
+      prompt: 'The capital of Germany is',
+      tokens: normalize([...CITIES, ...CITY_FILLERS], peakedCityWeights()),
+    },
+    1101,
+  ),
+  withRandomOrder(
+    {
+      id: 'languages',
+      label: 'Best programming language',
+      prompt: 'The best programming language is',
+      tokens: LANGUAGE_NAMES.map((text, i) => ({
+        text,
+        baseProb: LANGUAGE_PROBS[i],
+      })),
+    },
+    2202,
+  ),
+  withRandomOrder(
+    {
+      id: 'places',
+      label: 'I am going to the',
+      prompt: 'I am going to the',
+      tokens: normalize(PLACES, nearlyUniformWeights(PLACES.length)),
+    },
+    3303,
+  ),
+]
+
+export const DEFAULT_USE_CASE_ID = USE_CASES[0].id
+
+export function getUseCase(id: string): UseCase {
+  return USE_CASES.find((item) => item.id === id) ?? USE_CASES[0]
+}

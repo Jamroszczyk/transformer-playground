@@ -6,10 +6,10 @@ export type SamplingParams = {
 }
 
 export const DEFAULT_PARAMS: SamplingParams = {
-  temperature: 0.1,
+  temperature: 1,
   topK: 50,
-  topP: 0.95,
-  minP: 0.05,
+  topP: 1,
+  minP: 0,
 }
 
 export function applyTemperature(probs: number[], temperature: number): number[] {
@@ -32,34 +32,31 @@ export function applyFilters(
   { topK, topP, minP }: Pick<SamplingParams, 'topK' | 'topP' | 'minP'>,
 ): number[] {
   const n = probs.length
-  const kept = Array.from({ length: n }, () => true)
-  const peak = Math.max(...probs, 0)
+  if (n === 0) return []
 
-  for (let i = topK; i < n; i++) {
-    kept[i] = false
-  }
-
-  let cumulative = 0
-  let nucleus = n
-  for (let i = 0; i < n; i++) {
-    cumulative += probs[i]
-    if (cumulative >= topP) {
-      nucleus = i + 1
-      break
-    }
-  }
-  for (let i = nucleus; i < n; i++) {
-    kept[i] = false
-  }
-
+  const ranked = Array.from({ length: n }, (_, i) => i).sort(
+    (a, b) => probs[b] - probs[a] || a - b,
+  )
+  const peak = probs[ranked[0]] ?? 0
   const minThreshold = minP * peak
-  for (let i = 0; i < n; i++) {
-    if (probs[i] < minThreshold) kept[i] = false
+
+  const topKSet = new Set(ranked.slice(0, Math.max(1, topK)))
+
+  const nucleus = new Set<number>()
+  let cumulative = 0
+  for (const index of ranked) {
+    nucleus.add(index)
+    cumulative += probs[index]
+    if (cumulative >= topP) break
   }
 
-  kept[0] = true
+  const maxIdx = ranked[0]
 
-  return probs.map((p, i) => (kept[i] ? p : 0))
+  return probs.map((p, i) => {
+    if (i === maxIdx) return p
+    if (!topKSet.has(i) || !nucleus.has(i) || p < minThreshold) return 0
+    return p
+  })
 }
 
 export function visualDistribution(

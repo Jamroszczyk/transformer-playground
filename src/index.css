@@ -157,11 +157,87 @@ h1 {
   color: var(--muted);
 }
 
+.intro {
+  margin: 0 0 32px;
+}
+
+.intro summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  user-select: none;
+}
+
+.intro summary::-webkit-details-marker {
+  display: none;
+}
+
+.intro summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.intro[open] summary {
+  color: var(--text);
+}
+
+.intro[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.intro p {
+  margin: 12px 0 0;
+  max-width: 62ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
 .params {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 28px 40px;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
+}
+
+.usecase {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 18px;
+}
+
+.usecase select {
+  appearance: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-elevated)
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='none' stroke='%238d8b84' stroke-width='1.4' d='M1 1.5 6 6.5 11 1.5'/></svg>")
+    no-repeat right 12px center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 36px 8px 14px;
+  min-width: min(320px, 100%);
+  cursor: pointer;
+  outline: none;
+}
+
+.usecase select:hover,
+.usecase select:focus {
+  border-color: var(--btn-hover-border);
 }
 
 .param {
@@ -322,7 +398,7 @@ input[type='range']::-moz-range-thumb {
   position: absolute;
   top: 18px;
   left: 24px;
-  right: 88px;
+  right: 220px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -346,10 +422,43 @@ input[type='range']::-moz-range-thumb {
   animation: blink 1.15s steps(1) infinite;
 }
 
-.chart-meta {
+.chart-toolbar {
   position: absolute;
-  top: 26px;
-  right: 24px;
+  top: 18px;
+  right: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.order-toggle {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.order-toggle button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.order-toggle button.active {
+  background: var(--chip);
+  color: var(--text);
+}
+
+.chart-meta {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--muted);
@@ -402,6 +511,12 @@ input[type='range']::-moz-range-thumb {
 .btn.primary:hover {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
 }
 
 .btn.mass {
